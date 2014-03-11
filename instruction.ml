@@ -75,12 +75,16 @@ type 'a instruction =
   | Cop1 of 'a cop1
   | Cop2 of cop2
 
+type cond2 = Ge | Le | Gt | Lt
+
 (* Labeled Instructions and pseudo mnemonics *)
 type mnemonic =
 	Instruction of label instruction
   | Li of gpr * int
   | Li_s of fpr * float
   | Move of gpr * gpr
+  | Neg of gpr * gpr
+  | B of cond2 * gpr * gpr * label
   | Nop
 
 type directive =
@@ -88,3 +92,4 @@ type directive =
   | Label of label * int
   | LabelMnemonic of label * mnemonic * int
   | Eof
+  | Error

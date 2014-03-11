@@ -98,13 +98,13 @@ let op_26 op a =
 let op_5_5_16 op a b c = _6_5_5_16 (encode_op op) a b c
 
 let encode_special = function
-  | RdRsRt (sp, rd, rs, rt) -> n_5_5_5_5_sp rs rt rd 0 sp
-  | RsRt (sp, rs, rt) -> n_5_5_5_5_sp rs rt 0 0 sp
-  | RsRtSa (sp, rs, rt, sa) -> n_5_5_5_5_sp rs rt 0 sa sp
-  | Rs (sp, rs) -> n_5_5_5_5_sp rs 0 0 0 sp
-  | Rd (sp, rd) -> n_5_5_5_5_sp 0 0 rd 0 sp
-  | RdRs (sp, rd, rs) -> n_5_5_5_5_sp rs 0 rd 0 sp
-  | R0 sp -> n_5_5_5_5_sp 0 0 0 0 sp
+  | RdRsRt (sp, rd, rs, rt) -> _5_5_5_5_sp rs rt rd 0 sp
+  | RsRt (sp, rs, rt) -> _5_5_5_5_sp rs rt 0 0 sp
+  | RsRtSa (sp, rs, rt, sa) -> _5_5_5_5_sp rs rt 0 sa sp
+  | Rs (sp, rs) -> _5_5_5_5_sp rs 0 0 0 sp
+  | Rd (sp, rd) -> _5_5_5_5_sp 0 0 rd 0 sp
+  | RdRs (sp, rd, rs) -> _5_5_5_5_sp rs 0 rd 0 sp
+  | R0 sp -> _5_5_5_5_sp 0 0 0 0 sp
 
 let encode_cop1 = function
   | FdFs (fpu, fmt, fd, fs) -> fmt_5_5_5_fpu fmt 0 fs fd fpu
@@ -114,9 +114,9 @@ let encode_cop1 = function
   | RtFs (fmt, rt, fs) -> fmt_5_5_5_fpu fmt rt fs 0 `None
 
 let encode_cop2 = function
-  | Rs (io, rs) -> n_5_io_5 rs io 0
-  | Imm (io, imm) -> n_5_io_16 0 io imm
-  | Rd (io, rd) -> n_5_io_5 0 io rd
+  | Rs (io, rs) -> _5_io_5 rs io 0
+  | Imm (io, imm) -> _5_io_16 0 io imm
+  | Rd (io, rd) -> _5_io_5 0 io rd
 
 let encode = function
   | Special sp -> op_26 `Special (encode_special sp)

@@ -4,40 +4,50 @@ open Binary
 let _ = if Sys.word_size < 33 then (print_string "32bit CPU is not supported.\n"; exit 1)
 
 (* 擬似ニーモニックを命令列に変換 *)
-let rec insts_of_mnemonic mne line =
+let rec insts_of_mnemonic mne =
   match mne with
-	| Instruction inst -> [(inst, line)]
+	| Instruction inst -> [inst]
 	| Li (gpr, imm) ->
 	  (match (imm lsl 15) land 0b1111_1111_1111_1111_1 with
-		| 0b1111_1111_1111_1111_1 -> [RtRsImm (`Addi, gpr, 0, imm land 0xffff), line]
-		| 0 | 1 -> [RtRsImm (`Ori, gpr, 0, imm land 0xffff), line]
-		| _ -> [(RtImm (`Lui, gpr, (imm lsr 16) land 0xffff), line);
-				(RtRsImm (`Ori, gpr, 0, imm land 0xffff), line)])
+		| 0b1111_1111_1111_1111_1 -> [RtRsImm (`Addi, gpr, 0, imm land 0xffff)]
+		| 0 | 1 -> [RtRsImm (`Ori, gpr, 0, imm land 0xffff)]
+		| _ -> [RtImm (`Lui, gpr, (imm lsr 16) land 0xffff);
+				RtRsImm (`Ori, gpr, 0, imm land 0xffff)])
 	| Li_s (fpr, imm) ->
 	  let bits = Int32.to_int (Int32.bits_of_float imm) in
-	  let i = insts_of_mnemonic (Li (1, bits)) line in
-	  List.append i [Cop1 (RtFs (`Mt, 1, fpr)), line]
-	| Move (rd, rs) -> [Special (RdRsRt (`Or, rd, rs, 0)), line]
-	| Nop -> [Special (RsRtSa (`Sll, 0, 0, 0)), line]
+	  let i = insts_of_mnemonic (Li (1, bits)) in
+	  List.append i [Cop1 (RtFs (`Mt, 1, fpr))]
+	| Move (rd, rs) -> [Special (RdRsRt (`Or, rd, rs, 0))]
+	| Neg (rd, rt) -> [Special (RdRsRt (`Sub, rd, 0, rt))]
+	| Nop -> [Special (RsRtSa (`Sll, 0, 0, 0))]
+	| B (Gt, rs, rt, lbl) ->
+	  [Special (RdRsRt (`Slt, 1, rt, rs)); RsRtOffset (`Bne, 1, 0, lbl)]
+	| B (Lt, rs, rt, lbl) ->
+	  [Special (RdRsRt (`Slt, 1, rs, rt)); RsRtOffset (`Bne, 1, 0, lbl)]
+	| B (Ge, rs, rt, lbl) ->
+	  [Special (RdRsRt (`Slt, 1, rs, rt)); RsRtOffset (`Beq, 1, 0, lbl)]
+	| B (Le, rs, rt, lbl) ->
+	  [Special (RdRsRt (`Slt, 1, rt, rs)); RsRtOffset (`Beq, 1, 0, lbl)]
 
 (* append (reverse a) b *)
-let rec rappend a b =
+let rec rappend a line b =
   match a with
 	| [] -> b
-	| x::a -> rappend a (x::b)
+	| x::a -> rappend a line ((x, line)::b)
 
 (* directive listを逆向きinstruction listに変換 *)
 let rec parse lexbuf insts count tbl =
   match Parser.directive Lexer.token lexbuf with
 	| Eof -> (insts, count)
+	| Error -> failwith (string_of_int count)
 	| Label (label,line) ->
 	  (Hashtbl.add tbl label count;
 	   parse lexbuf insts count tbl)
 	| Mnemonic (mne, line) ->
-	  let insts = (rappend (insts_of_mnemonic mne line) insts) in
+	  let insts = (rappend (insts_of_mnemonic mne) line insts) in
 	  parse lexbuf insts (count + 1) tbl
 	| LabelMnemonic (label, mne, line) ->
-	  let insts = (rappend (insts_of_mnemonic mne line) insts) in
+	  let insts = (rappend (insts_of_mnemonic mne) line insts) in
 	  (Hashtbl.add tbl label count;
 	   parse lexbuf insts (count + 1) tbl)
 
@@ -73,7 +83,8 @@ let rec unlabel pre post addr tbl =
 		| RtOffsetBase (a,b,c,d) -> RtOffsetBase (a,b,c,d)
 		| FtOffsetBase (a,b,c,d) -> FtOffsetBase (a,b,c,d)
 		| RtRsImm (a,b,c,d) -> RtRsImm (a,b,c,d)
-		| RtImm (a,b,c) -> RtImm (a,b,c))
+		| RtImm (a,b,c) -> RtImm (a,b,c)
+		| Cop2 a -> Cop2 a)
 
 (* lexbuf *)
 let lexbuf = Lexing.from_channel stdin

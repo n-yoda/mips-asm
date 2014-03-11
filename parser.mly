@@ -32,7 +32,8 @@
 %token ADDI ADDIU ANDI BEQ BGTZ BLEZ BNE J JAL
 %token LUI LW LWC1 ORI SLTI SLTIU SW SWC1 XORI
 
-%token LI LI_S MOVE NOP
+%token LI LI_S MOVE NOP NEG
+%token BGT BGE BLT BLE
 
 %start directive
 %type <Instruction.directive> directive
@@ -44,6 +45,7 @@ directive:
   | ID mnemonic LF   { LabelMnemonic ($1, $2, $3) }
   | mnemonic LF      { Mnemonic ($1, $2) }
   | lf_eof           { Eof }
+  | error            { Error }
 ;
 
 lf_eof:
@@ -52,11 +54,13 @@ lf_eof:
 ;
 
 mnemonic:
-  | instruction      { Instruction $1 }
-  | LI GPR X INT     { Li ($2, $4) }
-  | LI_S FPR X FLOAT { Li_s ($2, $4) }
-  | MOVE GPR X GPR   { Move ($2, $4) }
-  | NOP              { Nop }
+  | instruction          { Instruction $1 }
+  | LI GPR X INT         { Li ($2, $4) }
+  | LI_S FPR X FLOAT     { Li_s ($2, $4) }
+  | MOVE GPR X GPR       { Move ($2, $4) }
+  | NEG GPR X GPR        { Neg ($2, $4) }
+  | cond2 GPR X GPR X ID { B ($1, $2, $4, $6) }
+  | NOP                  { Nop }
 ;
 
 instruction:
@@ -65,6 +69,7 @@ instruction:
   | rtOffsetBase GPR X INT L GPR R { RtOffsetBase ($1, $2, $4, $6) }
   | ftOffsetBase FPR X INT L GPR R { FtOffsetBase ($1, $2, $4, $6) }
   | rtRsImm GPR X GPR X INT { RtRsImm ($1, $2, $4, $6) }
+  | rtRsImm GPR X INT { RtRsImm ($1, $2, $2, $4) (* この形はアリ？ *) }
   | rtImm GPR X INT { RtImm ($1, $2, $4) }
   | rsRtOffset GPR X GPR X ID { RsRtOffset ($1, $2, $4, $6) }
   | rsOffset GPR X ID { RsOffset ($1, $2, $4) }
@@ -105,6 +110,8 @@ cop2:
 
 bc: | BC1F { false } | BC1T { true } ;
 
+cond2: | BGT { Gt } | BGE { Ge } | BLT { Lt } | BLE { Le } ;
+
 rdRsRt:
   | ADD { `Add } | ADDU { `Addu } | SUB { `Sub } | SUBU { `Subu }
   | AND { `And } | OR { `Or } | NOR { `Nor } | XOR { `Xor }
@@ -141,7 +148,7 @@ rtImm: | LUI { `Lui } ;
 
 rsRtOffset: | BEQ { `Beq } | BNE { `Bne } ;
 
-rsOffset: | BGEZ { `Bgtz } | BLTZ { `Blez } ;
+rsOffset: | BGTZ { `Bgtz } | BLEZ { `Blez } ;
 
 imm26: | J { `J } | JAL { `Jal } ;
 
@@ -150,7 +157,7 @@ fdFs_s:
   | RECIP_S { `Recip } | SQRT_S { `Sqrt } | CVT_W_S { `Cvt `Word }
 ;
 
-fdFsFt_s: | ADD_S { `Add } | MUL_S { `Mul } | DIV_S { `Div } ;
+fdFsFt_s: | ADD_S { `Add } | MUL_S { `Mul } | DIV_S { `Div } | SUB_S { `Sub } ;
 
 fdFs_w: | CVT_S_W { `Cvt `Single } ;
 

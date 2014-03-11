@@ -12,10 +12,10 @@
 
 let digit = ['0' - '9']
 let alpha = ['a' - 'z' 'A' - 'Z']
-let symbol = '.' | '-' | '_'
-let nondigit = alpha | symbol
+let symbol = '.' | '_' | '-'
 let numeric = digit | alpha | '_'
-let id = nondigit (digit | nondigit)*
+let init = alpha | '.' | '_'
+let id = init (digit | alpha | symbol)*
 let sp = [' ' '\t']
 let ss = sp* ":" sp* | sp+
 
@@ -47,9 +47,8 @@ let Y = ['Y' 'y']
 let Z = ['Z' 'z']
 
 rule token = parse
-  | sp* "#"               { comment lexbuf }
-  | (sp* "\n")+ as s      { line := !line + (count s '\n' 0);
-							LF (!line - 1) }
+  | (sp* ('#' [^'\n']*)? '\n')+ as s
+	  { line := !line + (count s '\n' 0); LF (!line - 1) }
   | ss A D D sp*          { ADD }
   | ss A D D U sp*        { ADDU }
   | ss A N D sp*          { AND }
@@ -129,6 +128,11 @@ rule token = parse
   | ss L I '.' S sp*          { LI_S }
   | ss M O V E sp*            { MOVE }
   | ss N O P sp*              { NOP }
+  | ss N E G sp*              { NEG }
+  | ss B L E sp*              { BLE }
+  | ss B L T sp*              { BLT }
+  | ss B G E sp*              { BGE }
+  | ss B G T sp*              { BGT }
   | sp* ":"                   { COLON }
   | sp* "," sp*               { X }
   | sp* "(" sp*               { L }
@@ -136,8 +140,9 @@ rule token = parse
   | id as s                   { ID s }
   | digit+ as d               { INT (int_of_string d) }
   | '0' numeric+ as d         { INT (int_of_string d) }
+  | '-' numeric+ as d         { INT (int_of_string d) }
   | digit+ '.' digit* as d    { FLOAT (float_of_string d) }
-  | digit* '.' digit+ as d    { FLOAT (float_of_string d) }
+  | '-' digit*+'.' digit* as d{ FLOAT (float_of_string d) }
   | '0' numeric+ as d         { INT (int_of_string d) }
   | '\'' _ '\'' as s          { INT (int_of_char s.[1]) }
   | "$f"digit+ as reg     { FPR (int_of_string (sub reg 2 (length reg - 2))) }
@@ -175,7 +180,4 @@ rule token = parse
   | "$fp"                 { GPR 30 }
   | "$ra"                 { GPR 31 }
   | sp* eof               { EOF }
-
-and comment = parse
-  | '\n'    { token lexbuf }
-  | _       { comment lexbuf }
+  | _                     { failwith (string_of_int !line) }
